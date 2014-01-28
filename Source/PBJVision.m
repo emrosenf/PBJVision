@@ -1397,30 +1397,30 @@ typedef void (^PBJVisionBlock)();
                 case AVAssetExportSessionStatusFailed:
                     NSLog(@"exporting failed");
                     break;
-                case AVAssetExportSessionStatusCompleted:
+                case AVAssetExportSessionStatusCompleted: {
                     NSLog(@"exporting completed");
                     for (NSURL *video in _videoClipPaths) {
                         [fm removeItemAtURL:video error:nil];
                     }
                     [_videoClipPaths removeAllObjects];
-                    //UISaveVideoAtPathToSavedPhotosAlbum(filePath, self, nil, NULL);
+                    
+                    [self _enqueueBlockOnMainQueue:^{
+                        NSMutableDictionary *videoDict = [[NSMutableDictionary alloc] init];
+                        
+                        [videoDict setObject:exporter.outputURL.path forKey:PBJVisionVideoPathKey];
+                        
+                        
+                        if ([_delegate respondsToSelector:@selector(vision:capturedVideo:error:)]) {
+                            [_delegate vision:self capturedVideo:videoDict error:error];
+                        }
+                    }];
+                }
                     break;
                 case AVAssetExportSessionStatusCancelled:
                     NSLog(@"export cancelled");
                     break;
             }
         }];
-        [self _enqueueBlockOnMainQueue:^{
-            NSMutableDictionary *videoDict = [[NSMutableDictionary alloc] init];
-            
-            [videoDict setObject:exporter.outputURL.path forKey:PBJVisionVideoPathKey];
-            
-            
-            if ([_delegate respondsToSelector:@selector(vision:capturedVideo:error:)]) {
-                [_delegate vision:self capturedVideo:videoDict error:error];
-            }
-        }];
-        
     }];
 }
 
