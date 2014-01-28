@@ -130,6 +130,7 @@ extern NSString * const PBJVisionVideoThumbnailKey;
 - (void)pauseVideoCapture;
 - (void)resumeVideoCapture;
 - (void)endVideoCapture;
+- (void)undoLastCapture;
 
 @end
 

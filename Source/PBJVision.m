@@ -1424,6 +1424,11 @@ typedef void (^PBJVisionBlock)();
     }];
 }
 
+- (void)undoLastCapture {
+    NSURL *url = _videoClipPaths.lastObject;
+    [[NSFileManager new] removeItemAtURL:url error:nil];
+}
+
 #pragma mark - sample buffer setup
 
 - (BOOL)_setupAssetWriterAudioInput:(CMFormatDescriptionRef)currentFormatDescription
