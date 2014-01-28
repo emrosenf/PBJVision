@@ -127,7 +127,11 @@ enum
     CVOpenGLESTextureRef _lumaTexture;
     CVOpenGLESTextureRef _chromaTexture;
     CVOpenGLESTextureCacheRef _videoTextureCache;
-
+    
+    
+    // EMR
+    NSMutableArray *_videoClipPaths;
+    
     // flags
     
     struct {
@@ -414,6 +418,9 @@ enum
         _captureVideoDispatchQueue = dispatch_queue_create("PBJVisionVideo", DISPATCH_QUEUE_SERIAL); // protects capture
         
         _previewLayer = [[AVCaptureVideoPreviewLayer alloc] initWithSession:nil];
+        
+        // EMR
+        _videoClipPaths = [NSMutableArray new];
         
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_applicationWillEnterForeground:) name:@"UIApplicationWillEnterForegroundNotification" object:[UIApplication sharedApplication]];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_applicationDidEnterBackground:) name:@"UIApplicationDidEnterBackgroundNotification" object:[UIApplication sharedApplication]];
@@ -1275,10 +1282,25 @@ typedef void (^PBJVisionBlock)();
         _flags.paused = YES;
         _flags.interrupted = YES;
         
-        [self _enqueueBlockOnMainQueue:^{
-            if ([_delegate respondsToSelector:@selector(visionDidPauseVideoCapture:)])
-                [_delegate visionDidPauseVideoCapture:self];
-        }];
+        void (^finishWritingCompletionHandler)(void) = ^{
+            _timeOffset = kCMTimeZero;
+            _audioTimestamp = kCMTimeZero;
+            _videoTimestamp = kCMTimeZero;
+            _startTimestamp = CMClockGetTime(CMClockGetHostTimeClock());
+            _flags.interrupted = NO;
+            _flags.readyForAudio = NO;
+            _flags.readyForVideo = NO;
+            
+            [_videoClipPaths addObject:_videoWriter.outputURL];
+            
+            [self _enqueueBlockOnMainQueue:^{
+                if ([_delegate respondsToSelector:@selector(visionDidPauseVideoCapture:)])
+                    [_delegate visionDidPauseVideoCapture:self];
+            }];
+        };
+        [_videoWriter finishWritingWithCompletionHandler:finishWritingCompletionHandler];
+        
+
     }];    
 }
 
@@ -1287,21 +1309,43 @@ typedef void (^PBJVisionBlock)();
     [self _enqueueBlockInCaptureVideoQueue:^{
         if (!_flags.recording || !_flags.paused)
             return;
- 
-        if (!_videoWriter) {
-            DLog(@"assetWriter unavailable to resume");
-            return;
+        
+        NSString *guid = [[NSUUID new] UUIDString];
+        NSString *outputPath = [NSString stringWithFormat:@"%@video_%@.mp4", NSTemporaryDirectory(), guid];
+        NSURL *outputURL = [NSURL fileURLWithPath:outputPath];
+        if ([[NSFileManager defaultManager] fileExistsAtPath:outputPath]) {
+            NSError *error = nil;
+            if (![[NSFileManager defaultManager] removeItemAtPath:outputPath error:&error]) {
+                DLog(@"could not setup an output file");
+                return;
+            }
         }
- 
-        DLog(@"resuming video capture");
-       
+        
+        if (!outputPath || [outputPath length] == 0)
+            return;
+        
+        _videoWriter = [[PBJVideoWriter alloc] initWithOutputURL:outputURL];
+        
+        AVCaptureConnection *videoConnection = [_captureOutputVideo connectionWithMediaType:AVMediaTypeVideo];
+        [self _setOrientationForConnection:videoConnection];
+        
+        _timeOffset = kCMTimeZero;
+        _audioTimestamp = kCMTimeZero;
+        _videoTimestamp = kCMTimeZero;
+        _startTimestamp = CMClockGetTime(CMClockGetHostTimeClock());
+        
+        _flags.recording = YES;
         _flags.paused = NO;
-
+        _flags.interrupted = NO;
+        _flags.readyForAudio = NO;
+        _flags.readyForVideo = NO;
+        _flags.videoWritten = NO;
+        
         [self _enqueueBlockOnMainQueue:^{
             if ([_delegate respondsToSelector:@selector(visionDidResumeVideoCapture:)])
                 [_delegate visionDidResumeVideoCapture:self];
         }];
-    }];    
+    }];
 }
 
 - (void)endVideoCapture
@@ -1320,28 +1364,63 @@ typedef void (^PBJVisionBlock)();
         _flags.recording = NO;
         _flags.paused = NO;
         
-        void (^finishWritingCompletionHandler)(void) = ^{
-            _timeOffset = kCMTimeZero;
-            _audioTimestamp = kCMTimeZero;
-            _videoTimestamp = kCMTimeZero;
-            _startTimestamp = CMClockGetTime(CMClockGetHostTimeClock());
-            _flags.interrupted = NO;
-            _flags.readyForAudio = NO;
-            _flags.readyForVideo = NO;
-
-            [self _enqueueBlockOnMainQueue:^{
-                NSMutableDictionary *videoDict = [[NSMutableDictionary alloc] init];
-                NSString *path = [_videoWriter.outputURL path];
-                if (path)
-                    [videoDict setObject:path forKey:PBJVisionVideoPathKey];
-
-                NSError *error = [_videoWriter error];
-                if ([_delegate respondsToSelector:@selector(vision:capturedVideo:error:)]) {
-                    [_delegate vision:self capturedVideo:videoDict error:error];
-                }
-            }];
-        };
-        [_videoWriter finishWritingWithCompletionHandler:finishWritingCompletionHandler];
+        AVMutableComposition *mixComposition = [AVMutableComposition composition];
+        AVMutableCompositionTrack *compositionTrack = [mixComposition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
+        NSError * error = nil;
+        NSMutableArray * timeRanges = [NSMutableArray arrayWithCapacity:_videoClipPaths.count];
+        NSMutableArray * tracks = [NSMutableArray arrayWithCapacity:_videoClipPaths.count];
+        NSMutableArray * audioTracks = [NSMutableArray arrayWithCapacity:_videoClipPaths.count];
+        for (NSUInteger i=0; i<_videoClipPaths.count; i++) {
+            AVURLAsset *assetClip = [AVURLAsset assetWithURL:_videoClipPaths[i]];
+            AVAssetTrack *clipVideoTrackB = [assetClip tracksWithMediaType:AVMediaTypeVideo][0];
+            AVAssetTrack *clipAudioTrack = [assetClip tracksWithMediaType:AVMediaTypeAudio][0];
+            [timeRanges addObject:[NSValue valueWithCMTimeRange:CMTimeRangeMake(kCMTimeZero, assetClip.duration)]];
+            [audioTracks addObject:clipAudioTrack];
+            [tracks addObject:clipVideoTrackB];
+        }
+        [compositionTrack insertTimeRanges:timeRanges ofTracks:tracks atTime:kCMTimeZero error:&error];
+        
+        AVMutableCompositionTrack *audioTrack = [mixComposition addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
+        [audioTrack insertTimeRanges:timeRanges ofTracks:audioTracks atTime:kCMTimeZero error:&error];
+        
+        AVAssetExportSession *exporter = [[AVAssetExportSession alloc] initWithAsset:mixComposition presetName:AVAssetExportPresetHighestQuality];
+        
+        NSString *uuid = [[NSUUID UUID] UUIDString];
+        NSString *outputPath = [NSString stringWithFormat:@"%@%@.mp4", NSTemporaryDirectory(), uuid];
+        
+        exporter.outputFileType = AVFileTypeQuickTimeMovie;
+        exporter.outputURL = [NSURL fileURLWithPath:outputPath];
+        
+        NSFileManager *fm = [NSFileManager new];
+        [exporter exportAsynchronouslyWithCompletionHandler:^(void){
+            switch (exporter.status) {
+                case AVAssetExportSessionStatusFailed:
+                    NSLog(@"exporting failed");
+                    break;
+                case AVAssetExportSessionStatusCompleted:
+                    NSLog(@"exporting completed");
+                    for (NSURL *video in _videoClipPaths) {
+                        [fm removeItemAtURL:video error:nil];
+                    }
+                    [_videoClipPaths removeAllObjects];
+                    //UISaveVideoAtPathToSavedPhotosAlbum(filePath, self, nil, NULL);
+                    break;
+                case AVAssetExportSessionStatusCancelled:
+                    NSLog(@"export cancelled");
+                    break;
+            }
+        }];
+        [self _enqueueBlockOnMainQueue:^{
+            NSMutableDictionary *videoDict = [[NSMutableDictionary alloc] init];
+            
+            [videoDict setObject:exporter.outputURL.path forKey:PBJVisionVideoPathKey];
+            
+            
+            if ([_delegate respondsToSelector:@selector(vision:capturedVideo:error:)]) {
+                [_delegate vision:self capturedVideo:videoDict error:error];
+            }
+        }];
+        
     }];
 }
 
