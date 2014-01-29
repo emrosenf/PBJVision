@@ -1269,7 +1269,7 @@ typedef void (^PBJVisionBlock)();
 - (void)pauseVideoCapture
 {
     [self _enqueueBlockInCaptureVideoQueue:^{
-        if (!_flags.recording)
+        if (!_flags.recording || _flags.paused)
             return;
 
         if (!_videoWriter) {
@@ -1897,7 +1897,7 @@ typedef void (^PBJVisionBlock)();
 {
     [self _enqueueBlockInCaptureVideoQueue:^{
         DLog(@"session was stopped");
-        if (_flags.recording)
+        if (_flags.recording && !_flags.paused)
             [self endVideoCapture];
     
         [self _enqueueBlockOnMainQueue:^{
