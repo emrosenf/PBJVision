@@ -1383,7 +1383,7 @@ typedef void (^PBJVisionBlock)();
         AVMutableCompositionTrack *audioTrack = [mixComposition addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
         [audioTrack insertTimeRanges:timeRanges ofTracks:audioTracks atTime:kCMTimeZero error:&error];
         
-        AVAssetExportSession *exporter = [[AVAssetExportSession alloc] initWithAsset:mixComposition presetName:AVAssetExportPresetHighestQuality];
+        AVAssetExportSession *exporter = [[AVAssetExportSession alloc] initWithAsset:mixComposition presetName:AVAssetExportPresetPassthrough];
         
         NSString *uuid = [[NSUUID UUID] UUIDString];
         NSString *outputPath = [NSString stringWithFormat:@"%@%@.mp4", NSTemporaryDirectory(), uuid];
