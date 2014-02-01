@@ -1404,8 +1404,30 @@ typedef void (^PBJVisionBlock)();
                     }
                     [_videoClipPaths removeAllObjects];
                     
+                    AVAsset *asset = [AVAsset assetWithURL:exporter.outputURL];
+                    AVAssetImageGenerator *imageGenerator = [[AVAssetImageGenerator alloc]initWithAsset:asset];
+                    CMTime time = [asset duration];
+                    
+                    
+//                    if (timeRanges.count > 1) {
+//                        NSValue *range = timeRanges[0];
+//                        CMTimeRange rng = [range CMTimeRangeValue];
+//                        time = CMTimemake
+//                        time.value = (CMTimeValue)rng.duration;
+//                    }
+//                    time.value = 0;
+                    
+                    time = CMTimeMakeWithSeconds(CMTimeGetSeconds(time) * 0.5, 600);
+                    
+                    CGImageRef imageRef = [imageGenerator copyCGImageAtTime:time actualTime:NULL error:NULL];
+                    UIImage *thumbnail = [UIImage imageWithCGImage:imageRef];
+                    CGImageRelease(imageRef);  // CGImageRef won't be released by ARC
+                    
+                    NSString *imagePath = [NSString stringWithFormat:@"%@%@.jpg", NSTemporaryDirectory(), uuid];
+                    [UIImageJPEGRepresentation(thumbnail, 0.9) writeToFile:imagePath atomically:YES];
                     [self _enqueueBlockOnMainQueue:^{
                         NSMutableDictionary *videoDict = [[NSMutableDictionary alloc] init];
+                        videoDict[@"thumbnail"] = imagePath;
                         
                         [videoDict setObject:exporter.outputURL.path forKey:PBJVisionVideoPathKey];
                         
