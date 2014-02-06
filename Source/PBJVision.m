@@ -1417,7 +1417,8 @@ typedef void (^PBJVisionBlock)();
 //                    }
 //                    time.value = 0;
                     
-                    time = CMTimeMakeWithSeconds(CMTimeGetSeconds(time) * 0.5, 600);
+//                    time = CMTimeMakeWithSeconds(CMTimeGetSeconds(time) * 0.5, 600);
+                    time = CMTimeMakeWithSeconds(0, 600);
                     
                     CGImageRef imageRef = [imageGenerator copyCGImageAtTime:time actualTime:NULL error:NULL];
                     UIImage *thumbnail = [UIImage imageWithCGImage:imageRef];
