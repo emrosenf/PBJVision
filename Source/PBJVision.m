@@ -1368,17 +1368,30 @@ typedef void (^PBJVisionBlock)();
         AVMutableCompositionTrack *compositionTrack = [mixComposition addMutableTrackWithMediaType:AVMediaTypeVideo preferredTrackID:kCMPersistentTrackID_Invalid];
         NSError * error = nil;
         NSMutableArray * timeRanges = [NSMutableArray arrayWithCapacity:_videoClipPaths.count];
-        NSMutableArray * tracks = [NSMutableArray arrayWithCapacity:_videoClipPaths.count];
+        NSMutableArray * videoTracks = [NSMutableArray arrayWithCapacity:_videoClipPaths.count];
         NSMutableArray * audioTracks = [NSMutableArray arrayWithCapacity:_videoClipPaths.count];
         for (NSUInteger i=0; i<_videoClipPaths.count; i++) {
             AVURLAsset *assetClip = [AVURLAsset assetWithURL:_videoClipPaths[i]];
-            AVAssetTrack *clipVideoTrackB = [assetClip tracksWithMediaType:AVMediaTypeVideo][0];
-            AVAssetTrack *clipAudioTrack = [assetClip tracksWithMediaType:AVMediaTypeAudio][0];
-            [timeRanges addObject:[NSValue valueWithCMTimeRange:CMTimeRangeMake(kCMTimeZero, assetClip.duration)]];
-            [audioTracks addObject:clipAudioTrack];
-            [tracks addObject:clipVideoTrackB];
+            NSData *dt = [NSData dataWithContentsOfURL:_videoClipPaths[i]];
+            NSLog(@"Length: %lu", (unsigned long)dt.length);
+            NSArray *clipVideoTracks = [assetClip tracksWithMediaType:AVMediaTypeVideo];
+            NSArray *clipAudioTracks = [assetClip tracksWithMediaType:AVMediaTypeAudio];
+            if (videoTracks.count > 0 && audioTracks.count > 0) {
+                AVAssetTrack *videoTrack = clipVideoTracks[0];
+                AVAssetTrack *audioTrack = clipAudioTracks[0];
+                [timeRanges addObject:[NSValue valueWithCMTimeRange:CMTimeRangeMake(kCMTimeZero, assetClip.duration)]];
+                [audioTracks addObject:audioTrack];
+                [videoTracks addObject:videoTrack];
+            } else {
+                if (videoTracks.count == 0) {
+                    NSLog(@"=======WARNING========\nNO VIDEO TRACK");
+                }
+                if (audioTracks.count == 0) {
+                    NSLog(@"=======WARNING========\nNO AUDIO TRACK");
+                }
+            }
         }
-        [compositionTrack insertTimeRanges:timeRanges ofTracks:tracks atTime:kCMTimeZero error:&error];
+        [compositionTrack insertTimeRanges:timeRanges ofTracks:videoTracks atTime:kCMTimeZero error:&error];
         
         AVMutableCompositionTrack *audioTrack = [mixComposition addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
         [audioTrack insertTimeRanges:timeRanges ofTracks:audioTracks atTime:kCMTimeZero error:&error];
