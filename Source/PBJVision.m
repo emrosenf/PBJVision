@@ -905,6 +905,13 @@ typedef void (^PBJVisionBlock)();
             _previewLayer.connection.enabled = YES;
 
         [_captureSession stopRunning];
+        
+        NSFileManager *fm = [NSFileManager new];
+        for (NSURL *video in _videoClipPaths) {
+            [fm removeItemAtURL:video error:nil];
+        }
+        [_videoClipPaths removeAllObjects];
+
 
         [self _executeBlockOnMainQueue:^{
             if ([_delegate respondsToSelector:@selector(visionSessionDidStopPreview:)]) {
