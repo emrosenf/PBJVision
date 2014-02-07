@@ -187,6 +187,11 @@ enum
     return ([_captureSession isRunning]);
 }
 
+- (BOOL)paused
+{
+    return _flags.paused;
+}
+
 - (BOOL)isRecording
 {
     return _flags.recording;
