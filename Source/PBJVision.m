@@ -1376,17 +1376,17 @@ typedef void (^PBJVisionBlock)();
             NSLog(@"Length: %lu", (unsigned long)dt.length);
             NSArray *clipVideoTracks = [assetClip tracksWithMediaType:AVMediaTypeVideo];
             NSArray *clipAudioTracks = [assetClip tracksWithMediaType:AVMediaTypeAudio];
-            if (videoTracks.count > 0 && audioTracks.count > 0) {
+            if (clipVideoTracks.count > 0 && clipAudioTracks.count > 0) {
                 AVAssetTrack *videoTrack = clipVideoTracks[0];
                 AVAssetTrack *audioTrack = clipAudioTracks[0];
                 [timeRanges addObject:[NSValue valueWithCMTimeRange:CMTimeRangeMake(kCMTimeZero, assetClip.duration)]];
                 [audioTracks addObject:audioTrack];
                 [videoTracks addObject:videoTrack];
             } else {
-                if (videoTracks.count == 0) {
+                if (clipVideoTracks.count == 0) {
                     NSLog(@"=======WARNING========\nNO VIDEO TRACK");
                 }
-                if (audioTracks.count == 0) {
+                if (clipAudioTracks.count == 0) {
                     NSLog(@"=======WARNING========\nNO AUDIO TRACK");
                 }
             }
