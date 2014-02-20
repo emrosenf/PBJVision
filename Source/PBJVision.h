@@ -66,6 +66,8 @@ extern NSString * const PBJVisionVideoThumbnailKey;
 
 + (PBJVision *)sharedInstance;
 
+- (NSArray *) videoClipData;
+
 @property (nonatomic, weak) id<PBJVisionDelegate> delegate;
 
 // session
