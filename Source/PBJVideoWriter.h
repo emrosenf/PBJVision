@@ -24,6 +24,6 @@
 // write
 
 - (void)writeSampleBuffer:(CMSampleBufferRef)sampleBuffer ofType:(NSString *)mediaType;
-- (void)finishWritingWithCompletionHandler:(void (^)(void))handler;
+- (BOOL)finishWritingWithCompletionHandler:(void (^)(void))handler;
 
 @end

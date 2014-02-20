@@ -175,4 +175,6 @@ extern NSString * const PBJVisionVideoThumbnailKey;
 - (void)visionDidCaptureVideoSample:(PBJVision *) vision;
 - (void)visionDidCaptureAudioSample:(PBJVision *) vision;
 
+- (void) visionWriteDidFail:(PBJVision *) vision;
+
 @end

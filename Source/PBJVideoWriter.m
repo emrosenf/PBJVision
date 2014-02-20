@@ -193,15 +193,21 @@
     
 }
 
-- (void)finishWritingWithCompletionHandler:(void (^)(void))handler
+- (BOOL)finishWritingWithCompletionHandler:(void (^)(void))handler
 {
     if (_assetWriter.status == AVAssetWriterStatusUnknown) {
         DLog(@"asset writer is in an unknown state, wasn't recording");
-        return;
+        NO;
+    }
+    
+    @try {
+        [_assetWriter finishWritingWithCompletionHandler:handler];
+    }
+    @catch (NSException *exception) {
+        return NO;
     }
 
-    [_assetWriter finishWritingWithCompletionHandler:handler];
-    
+    return YES;
 // _assetWriterAudioIn = nil;
 // _assetWriterVideoIn = nil;
 
