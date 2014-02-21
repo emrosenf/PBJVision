@@ -1494,7 +1494,7 @@ typedef void (^PBJVisionBlock)();
 - (NSArray *) videoClipData {
     NSMutableArray *arr = [NSMutableArray new];
     for (int i = 0; i < _videoClipPaths.count; i++) {
-        [arr addObject:[@{@"thumbnail": _videoClipThumbnails[i], @"clip": _videoClipPaths[i]} mutableCopy]];
+        [arr addObject:[@{@"clip": _videoClipPaths[i]} mutableCopy]];
     }
     return arr;
 }
