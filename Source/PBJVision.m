@@ -127,10 +127,7 @@ enum
     CVOpenGLESTextureRef _lumaTexture;
     CVOpenGLESTextureRef _chromaTexture;
     CVOpenGLESTextureCacheRef _videoTextureCache;
-    
-    
-    // EMR
-    NSMutableArray *_videoClipPaths;
+
     
     // flags
     
@@ -1467,10 +1464,6 @@ typedef void (^PBJVisionBlock)();
 //            }
 //        }];
 //    }];
-}
-
-- (NSArray *) videoClipData {
-    return [_videoClipPaths mutableCopy];
 }
 
 - (void) cleanupTemporaryFiles {
