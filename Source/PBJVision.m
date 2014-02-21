@@ -1366,8 +1366,9 @@ typedef void (^PBJVisionBlock)();
     DLog(@"ending video capture");
     
     [self _enqueueBlockInCaptureVideoQueue:^{
-        if (!_flags.recording)
-            return;
+//        We don't have to be recording to do this
+//        if (!_flags.recording)
+//            return;
         
         if (!_videoWriter) {
             DLog(@"assetWriter unavailable to end");
@@ -1472,13 +1473,24 @@ typedef void (^PBJVisionBlock)();
     return [_videoClipPaths mutableCopy];
 }
 
-- (void)undoLastCapture {
-    NSURL *url = _videoClipPaths.lastObject;
+- (void) cleanupTemporaryFiles {
     NSFileManager *fm = [NSFileManager new];
-    [fm removeItemAtURL:url error:nil];
-    [_videoClipPaths removeLastObject];
     
+    for (NSURL *url in _videoClipPaths) {
+        [fm removeItemAtURL:url error:nil];
+    }
+    [_videoClipPaths removeAllObjects];
 }
+
+- (void) removeClipAtIndex:(NSInteger)index {
+    if (index < _videoClipPaths.count) {
+        NSURL *url = _videoClipPaths[index];
+        NSFileManager *fm = [NSFileManager new];
+        [fm removeItemAtURL:url error:nil];
+        [_videoClipPaths removeObjectAtIndex:index];
+    }
+}
+
 
 #pragma mark - sample buffer setup
 
