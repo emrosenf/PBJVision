@@ -131,7 +131,6 @@ enum
     
     // EMR
     NSMutableArray *_videoClipPaths;
-    NSMutableArray *_videoClipThumbnails;
     
     // flags
     
@@ -427,7 +426,6 @@ enum
         
         // EMR
         _videoClipPaths = [NSMutableArray new];
-        _videoClipThumbnails = [NSMutableArray new];
         
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_applicationWillEnterForeground:) name:@"UIApplicationWillEnterForegroundNotification" object:[UIApplication sharedApplication]];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_applicationDidEnterBackground:) name:@"UIApplicationDidEnterBackgroundNotification" object:[UIApplication sharedApplication]];
@@ -907,14 +905,6 @@ typedef void (^PBJVisionBlock)();
             _previewLayer.connection.enabled = YES;
 
         [_captureSession stopRunning];
-        
-        NSFileManager *fm = [NSFileManager new];
-//        for (NSURL *video in _videoClipPaths) {
-//            [fm removeItemAtURL:video error:nil];
-//        }
-        [_videoClipPaths removeAllObjects];
-        [_videoClipThumbnails removeAllObjects];
-
 
         [self _executeBlockOnMainQueue:^{
             if ([_delegate respondsToSelector:@selector(visionSessionDidStopPreview:)]) {
@@ -1315,19 +1305,6 @@ typedef void (^PBJVisionBlock)();
                 if ([_delegate respondsToSelector:@selector(visionDidPauseVideoCapture:)])
                     [_delegate visionDidPauseVideoCapture:self];
             }];
-            
-            AVAssetImageGenerator *imageGenerator = [[AVAssetImageGenerator alloc] initWithAsset:[AVAsset assetWithURL:_videoWriter.outputURL]];
-            CMTime time = CMTimeMakeWithSeconds(0, 600);
-
-            CGImageRef imageRef = [imageGenerator copyCGImageAtTime:time actualTime:NULL error:NULL];
-            UIImage *thumbnail = [UIImage imageWithCGImage:imageRef];
-            CGImageRelease(imageRef);  // CGImageRef won't be released by ARC
-            NSString *uuid = [[NSUUID UUID] UUIDString];
-            NSString *imagePath = [NSString stringWithFormat:@"%@%@.jpg", NSTemporaryDirectory(), uuid];
-            [UIImageJPEGRepresentation(thumbnail, 0.9) writeToFile:imagePath atomically:YES];
-            [_videoClipThumbnails addObject:imagePath];
-
-            
         };
         if (![_videoWriter finishWritingWithCompletionHandler:finishWritingCompletionHandler]) {
             [self _enqueueBlockOnMainQueue:^{
@@ -1492,11 +1469,7 @@ typedef void (^PBJVisionBlock)();
 }
 
 - (NSArray *) videoClipData {
-    NSMutableArray *arr = [NSMutableArray new];
-    for (int i = 0; i < _videoClipPaths.count; i++) {
-        [arr addObject:[@{@"clip": _videoClipPaths[i]} mutableCopy]];
-    }
-    return arr;
+    return [_videoClipPaths mutableCopy];
 }
 
 - (void)undoLastCapture {
@@ -1504,9 +1477,6 @@ typedef void (^PBJVisionBlock)();
     NSFileManager *fm = [NSFileManager new];
     [fm removeItemAtURL:url error:nil];
     [_videoClipPaths removeLastObject];
-    NSString *path = _videoClipThumbnails.lastObject;
-    [fm removeItemAtPath:path error:nil];
-    [_videoClipThumbnails removeLastObject];
     
 }
 
