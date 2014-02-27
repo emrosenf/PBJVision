@@ -1466,13 +1466,19 @@ typedef void (^PBJVisionBlock)();
 //    }];
 }
 
-- (void) cleanupTemporaryFiles {
-    NSFileManager *fm = [NSFileManager new];
-    
-    for (NSURL *url in _videoClipPaths) {
-        [fm removeItemAtURL:url error:nil];
+- (void) cleanupTemporaryFiles:(BOOL)deleteFiles {
+    if (deleteFiles) {
+        NSFileManager *fm = [NSFileManager new];
+        
+        for (NSURL *url in _videoClipPaths) {
+            [fm removeItemAtURL:url error:nil];
+        }
     }
     [_videoClipPaths removeAllObjects];
+}
+
+- (void) cleanupTemporaryFiles {
+    [self cleanupTemporaryFiles:YES];
 }
 
 - (void) removeClipAtIndex:(NSInteger)index {

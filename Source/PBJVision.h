@@ -68,6 +68,7 @@ extern NSString * const PBJVisionVideoThumbnailKey;
 
 - (void) removeClipAtIndex:(NSInteger)index;
 - (void) cleanupTemporaryFiles;
+- (void) cleanupTemporaryFiles:(BOOL)deleteFiles;
 
 // EMR
 @property (nonatomic, strong) NSMutableArray *videoClipPaths;
